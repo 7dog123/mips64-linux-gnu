@@ -12,7 +12,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y lib{gmp,mpc,mpfr,isl,zstd}-dev zlib1g-dev rsync python3
+        sudo apt-get install -y lib{gmp,mpc,mpfr,isl,zstd,debuginfod}-dev zlib1g-dev rsync python3
 
     - name: run shell script
       run: chmod 755 ./new-build.sh; ./new-build.sh
