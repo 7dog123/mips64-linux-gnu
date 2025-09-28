@@ -281,7 +281,7 @@ if ! stage_marker "glibc"; then
     
     # provide tracing probes to libstdc++ for exceptions, possibly for other
     # libraries too. Useful for gdb's catch command.
-    install -D -m644 sdt{,-config}.h -t "${pkgdir}/usr/${_target}/include/sys"
+    install -D -m644 ${srcdir}/sdt{,-config}.h -t "${pkgdir}/usr/${_target}/include/sys"
     
     # remove unneeded files
     rm -r "${pkgdir}/usr/${_target}"/{etc,usr/share,var} || true
