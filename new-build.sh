@@ -232,7 +232,7 @@ if ! stage_marker "glibc"; then
     )
 
     # Fix CFLAGS
-	CFLAGS="${CFLAGS:-}"; CXXFLAGS="${CXXFLAGS:-}"
+    CFLAGS="${CFLAGS:-}"; CXXFLAGS="${CXXFLAGS:-}"
     # remove fortify for building libraries
     export CFLAGS="${CFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
     export CXXFLAGS="${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
@@ -265,7 +265,7 @@ if ! stage_marker "glibc"; then
     # strip static/shared libraries
     for _abi in "${ABIS[@]}"
     do
-        make -C "build-abi-${_abi}" install_root="${pkgdir}/usr/${_target}" install
+        make install_root="${pkgdir}/usr/${_target}" install
         
         find "${pkgdir}/usr/${_target}/lib/${pkgname##*-}/abi-${_abi}" -name '*.a' -type f \
             -exec "${_target}-strip" "$STRIP_STATIC" {} + 2> /dev/null || true
@@ -294,6 +294,7 @@ fi
 # ----------------------------
 if ! stage_marker "gcc-final"; then
     echo "=== Building final GCC ==="
+    cd "$srcdir"
     mkdir -p build-gcc-final && cd build-gcc-final
     patch -d "$srcdir/gcc-15.1.0" -Np1 -i "$srcdir/020-gcc-config-mips-multilib.patch" || true
 
@@ -337,7 +338,7 @@ if ! stage_marker "gcc-final"; then
         --disable-libsanitizer
 
     make -j"$(nproc)"
-    make -C build-gcc-final DESTDIR="$pkgdir" install-gcc install-target-{libgcc,libstdc++-v3,libgomp,libgfortran,libquadmath}
+    make DESTDIR="$pkgdir" install-gcc install-target-{libgcc,libstdc++-v3,libgomp,libgfortran,libquadmath}
 
     # allow using gnuabi${ABI} executables
     for _abi in "${ABIS[@]}"; do
