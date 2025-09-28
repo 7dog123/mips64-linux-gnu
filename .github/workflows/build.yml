@@ -15,4 +15,4 @@ jobs:
         sudo apt-get install -y lib{gmp,mpc,mpfr,isl,zstd}-dev zlib1g-dev rsync python3
 
     - name: run shell script
-      run: ./new-build.sh
+      run: chmod 755 ./new-build.sh; ./new-build.sh
