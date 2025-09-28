@@ -188,32 +188,37 @@ fi
 # 4. glibc
 # ----------------------------
 if ! stage_marker "glibc"; then
-	pkgname="${_target}-glibc"
-	pkgver=2.42
-	
+    pkgname="${_target}-glibc"
+    pkgver=2.42
+
     echo "=== Building glibc ==="
     cd "$srcdir"
-	wget -nc "https://ftpmirror.gnu.org/gnu/glibc/glibc-2.42.tar.xz"
-    tar xf glibc-2.42.tar.xz
+    wget -nc "https://ftpmirror.gnu.org/gnu/glibc/glibc-${pkgver}.tar.xz"
+    tar xf glibc-${pkgver}.tar.xz
 
-	for _abi in "${ABIS[@]}"; do
-		mkdir -p "build-abi-${_abi}"
-		printf '%s\n' "slibdir=/lib/glibc/abi-${_abi}" > "build-abi-${_abi}/configparms"
-		printf '%s\n' "rtlddir=/lib/glibc/abi-${_abi}" >> "build-abi-${_abi}/configparms"
-		printf '%s\n' 'rootsbindir=/bin' >> "build-abi-${_abi}/configparms"
-		printf '%s\n' 'sbindir=/bin' >> "build-abi-${_abi}/configparms"
-	done
-	
-	install -d -m755 sys
-	cp -Rv "$srcdir/sdt.h" sys/sdt.h
-	cp -Rv "$srcdir/sdt-config.h" sys/sdt-config.h
+    # Prepare ABI build directories and configparms
+    for _abi in "${ABIS[@]}"; do
+        mkdir -p "build-abi-${_abi}"
+        {
+            printf 'slibdir=/lib/glibc/abi-%s\n' "$_abi"
+            printf 'rtlddir=/lib/glibc/abi-%s\n' "$_abi"
+            printf 'rootsbindir=/bin\n'
+            printf 'sbindir=/bin\n'
+        } > "build-abi-${_abi}/configparms"
+    done
 
+    # Provide systemtap headers
+    install -d -m755 sys
+    cp -v "$srcdir/sdt.h" sys/sdt.h
+    cp -v "$srcdir/sdt-config.h" sys/sdt-config.h
+
+    # Configure flags as an array
     _configure_flags=(
         --build="$(gcc -dumpmachine)"
         --host="${_target}"
         --target="${_target}"
-        --prefix="/usr"
-        --includedir="/include"
+        --prefix=/usr
+        --includedir=/include
         --with-headers="$pkgdir/usr/${_target}/include"
         --enable-add-ons
         --enable-bind-now
@@ -233,11 +238,8 @@ if ! stage_marker "glibc"; then
 
     # Fix CFLAGS
     CFLAGS="${CFLAGS:-}"; CXXFLAGS="${CXXFLAGS:-}"
-    # remove fortify for building libraries
     export CFLAGS="${CFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
     export CXXFLAGS="${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
-    
-    # build fixes
     export CFLAGS="$(sed -E 's/-fno-plt//;s/-fcf-protection//;s/-mno-omit-leaf-frame-pointer//' <<< "$CFLAGS")"
     export CXXFLAGS="$(sed -E 's/-fno-plt//;s/-fcf-protection//;s/-mno-omit-leaf-frame-pointer//' <<< "$CXXFLAGS")"
     export CFLAGS="$(sed -E 's/\-m(arch|tune|cpu|fpu|abi)(=|[[:space:]]*|)[[:alnum:]-]*//g' <<< "$CFLAGS")"
@@ -247,44 +249,41 @@ if ! stage_marker "glibc"; then
     export AR="${_target}-ar"
     export RANLIB="${_target}-ranlib"
 
-    for _abi in "${ABIS[@]}"
-    do
+    # Build glibc for each ABI
+    for _abi in "${ABIS[@]}"; do
         cd "${srcdir}/build-abi-${_abi}"
         export CC="${_target}-gcc -mabi=${_abi} -I${srcdir}"
         export CXX="${_target}-g++ -mabi=${_abi} -I${srcdir}"
-        
+
         "${srcdir}/glibc-${pkgver}/configure" \
             --libdir="/lib/${pkgname##*-}/abi-${_abi}" \
             --libexecdir="/lib/${pkgname##*-}/abi-${_abi}" \
             "${_configure_flags[@]}"
-        
-        printf '%s\n' 'build-programs=no' >> configparms
-        make
-	done
 
-    # strip static/shared libraries
-    for _abi in "${ABIS[@]}"
-    do
-        make install_root="${pkgdir}/usr/${_target}" install
-        
+        echo 'build-programs=no' >> configparms
+        make -j3
+    done
+
+    # Install + strip
+    for _abi in "${ABIS[@]}"; do
+        make -C "${srcdir}/build-abi-${_abi}" install_root="${pkgdir}/usr/${_target}" install
+
         find "${pkgdir}/usr/${_target}/lib/${pkgname##*-}/abi-${_abi}" -name '*.a' -type f \
-            -exec "${_target}-strip" --strip-debug {} + 2> /dev/null || true
-        
-        # do not strip these for gdb and valgrind functionality, but strip the rest
+            -exec "${_target}-strip" --strip-debug {} + 2>/dev/null || true
+
         find "${pkgdir}/usr/${_target}/lib/${pkgname##*-}/abi-${_abi}" \
             -not -name 'ld-*.so' \
             -not -name 'libc-*.so' \
             -not -name 'libpthread-*.so' \
             -not -name 'libthread_db-*.so' \
-            -name '*-*.so' -type f -exec "${_target}-strip" --strip-unneeded {} + 2> /dev/null || true
+            -name '*-*.so' -type f -exec "${_target}-strip" --strip-unneeded {} + 2>/dev/null || true
     done
-    
-    # provide tracing probes to libstdc++ for exceptions, possibly for other
-    # libraries too. Useful for gdb's catch command.
+
+    # Provide tracing probes
     install -D -m644 ${srcdir}/sdt{,-config}.h -t "${pkgdir}/usr/${_target}/include/sys"
-    
-    # remove unneeded files
-    rm -r "${pkgdir}/usr/${_target}"/{etc,usr/share,var} || true
+
+    # Clean up
+    rm -rf "${pkgdir}/usr/${_target}"/{etc,usr/share,var} || true
 
     mark_stage_done "glibc"
 fi
