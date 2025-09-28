@@ -268,7 +268,7 @@ if ! stage_marker "glibc"; then
         make install_root="${pkgdir}/usr/${_target}" install
         
         find "${pkgdir}/usr/${_target}/lib/${pkgname##*-}/abi-${_abi}" -name '*.a' -type f \
-            -exec "${_target}-strip" "$STRIP_STATIC" {} + 2> /dev/null || true
+            -exec "${_target}-strip" --strip-debug {} + 2> /dev/null || true
         
         # do not strip these for gdb and valgrind functionality, but strip the rest
         find "${pkgdir}/usr/${_target}/lib/${pkgname##*-}/abi-${_abi}" \
@@ -276,7 +276,7 @@ if ! stage_marker "glibc"; then
             -not -name 'libc-*.so' \
             -not -name 'libpthread-*.so' \
             -not -name 'libthread_db-*.so' \
-            -name '*-*.so' -type f -exec "${_target}-strip" "$STRIP_SHARED" {} + 2> /dev/null || true
+            -name '*-*.so' -type f -exec "${_target}-strip" --strip-unneeded {} + 2> /dev/null || true
     done
     
     # provide tracing probes to libstdc++ for exceptions, possibly for other
