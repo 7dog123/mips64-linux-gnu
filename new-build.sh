@@ -306,7 +306,7 @@ if ! stage_marker "gcc-final"; then
         --libexecdir='/usr/lib' \
         --mandir='/usr/share/man' \
         --with-sysroot="/usr/${_target}" \
-        --with-build-sysroot="/usr/${_target}" \
+        --with-build-sysroot="${pkgdir}/usr/${_target}" \
         --with-native-system-header-dir='/include' \
         --with-abi="$DEFAULT_ABI" \
         --with-gnu-as \
@@ -336,7 +336,7 @@ if ! stage_marker "gcc-final"; then
         --disable-werror \
         --disable-libsanitizer
 
-    make -j"$(nproc)"
+    make -j3
     make DESTDIR="$pkgdir" install-gcc install-target-{libgcc,libstdc++-v3,libgomp,libgfortran,libquadmath}
 
     # allow using gnuabi${ABI} executables
